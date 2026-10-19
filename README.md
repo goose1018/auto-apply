@@ -11,7 +11,7 @@
 **Status (honest):** the pipeline, ledger, schemas and CLI pass 19/19 self-checks, and sourcing + screening have run on a real search (303 postings → 261 deduplicated → shortlist). End-to-end submission on live sites is not yet verified; every capability is labelled in the table below.
 
 ```bash
-git clone https://github.com/<you>/auto-apply ~/cursor/auto-apply && cd ~/cursor/auto-apply && ./install.sh
+git clone https://github.com/goose1018/auto-apply ~/cursor/auto-apply && cd ~/cursor/auto-apply && ./install.sh
 # then in Claude Code:  /auto-apply
 ```
 
@@ -87,7 +87,7 @@ git clone https://github.com/<you>/auto-apply ~/cursor/auto-apply && cd ~/cursor
 ## 5. 安装
 
 ```bash
-git clone <仓库地址> ~/cursor/auto-apply
+git clone https://github.com/goose1018/auto-apply ~/cursor/auto-apply
 cd ~/cursor/auto-apply
 bash install.sh
 ```
@@ -171,7 +171,7 @@ Phase 1 (foundations), 2026-09-05. **Nothing runs end to end yet.** Every capabi
 ### Install
 
 ```bash
-git clone <repo-url> ~/cursor/auto-apply
+git clone https://github.com/goose1018/auto-apply ~/cursor/auto-apply
 cd ~/cursor/auto-apply
 bash install.sh
 python3 scripts/verify/all.py
