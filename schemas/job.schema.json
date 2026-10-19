@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-apply.local/schemas/job.schema.json",
+  "title": "auto-apply candidate job / 候选岗位",
+  "description": "候选岗位（candidates.jsonl 每行一个）。job_id 由 dedup_key 唯一决定；渠道/平台是属性不是键（R1）。 / One candidate job per line in candidates.jsonl. job_id is derived from dedup_key; channel/platform are attributes, not part of the key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["job_id", "dedup_key", "company", "title", "url", "platform", "channel", "source", "discovered_at", "run_id"],
+  "properties": {
+    "job_id": { "type": "string", "pattern": "^job_[a-f0-9]{12}$" },
+    "dedup_key": { "type": "string", "minLength": 3, "description": "normalize(company)|normalize(title)，见 ARCHITECTURE §6 / See ARCHITECTURE §6" },
+    "company": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "normalized"],
+      "properties": {
+        "raw": { "type": "string", "minLength": 1 },
+        "normalized": { "type": "string", "minLength": 1 },
+        "domain": { "type": ["string", "null"], "description": "公司邮箱/网站域名，供证据匹配 / Company domain for evidence matching" }
+      }
+    },
+    "title": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "normalized"],
+      "properties": {
+        "raw": { "type": "string", "minLength": 1 },
+        "normalized": { "type": "string", "minLength": 1 }
+      }
+    },
+    "url": { "type": "string", "minLength": 1, "description": "JD 页面 / JD page" },
+    "apply_url": { "type": ["string", "null"], "description": "申请入口（若与 JD 不同） / Apply entry if different" },
+    "req_id": { "type": ["string", "null"], "description": "平台需求编号 / Requisition id" },
+    "platform": { "$ref": "#/$defs/platform" },
+    "channel": { "$ref": "#/$defs/channel" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "enum": ["user_list", "user_link", "site_search", "recommendation", "referral", "legacy_import", "other"], "description": "R2：用户清单/链接优先，自主搜索需批准 / R2: user list/links first; searches need approval" },
+        "ref": { "type": ["string", "null"], "description": "清单文件+行号 / 搜索词+页码 / 链接序号 / List file+line, query+page, or link index" },
+        "added_by": { "type": ["string", "null"], "description": "agent 名 / agent name" }
+      }
+    },
+    "location": { "type": ["string", "null"] },
+    "posted_at": { "type": ["string", "null"] },
+    "closes_at": { "type": ["string", "null"] },
+    "jd_summary": { "type": ["string", "null"], "maxLength": 1500, "description": "JD 摘要（母清单展示） / JD summary shown in the shortlist" },
+    "jd_hash": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$", "description": "JD 正文 sha256，用于发现 JD 变更 / sha256 of JD text" },
+    "hard_conditions": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "硬条件（Screening 用；null = JD 未写/未知） / Hard conditions; null = not stated",
+      "properties": {
+        "degree_required": { "type": ["string", "null"], "enum": ["diploma", "bachelor", "master", "phd", "any", "unknown", null] },
+        "bachelor_only": { "type": ["boolean", "null"], "description": "JD 明写只招本科在读 / JD explicitly restricts to bachelor's students" },
+        "accepts_master": { "type": ["boolean", "null"] },
+        "work_window": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "start": { "type": ["string", "null"] },
+            "end": { "type": ["string", "null"] },
+            "raw": { "type": ["string", "null"] }
+          }
+        },
+        "duration_months": { "type": ["number", "null"], "minimum": 0 },
+        "hours_per_week": { "type": ["integer", "null"], "minimum": 0 },
+        "start_immediately": { "type": ["boolean", "null"] },
+        "salary": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "disclosed": { "type": ["boolean", "null"] },
+            "min": { "type": ["number", "null"] },
+            "max": { "type": ["number", "null"] },
+            "currency": { "type": ["string", "null"] },
+            "period": { "type": ["string", "null"], "enum": ["month", "day", "hour", "year", null] },
+            "unpaid": { "type": ["boolean", "null"] }
+          }
+        },
+        "work_pass_requirement": { "type": ["string", "null"], "enum": ["citizen_only", "citizen_pr_only", "open", "sponsorship_available", "no_sponsorship", "unknown", null] },
+        "languages_required": { "type": "array", "items": { "type": "string" } },
+        "resume_language_required": { "type": ["string", "null"], "enum": ["en", "zh", "other", null] },
+        "requires_local_id": { "type": ["boolean", "null"], "description": "申请表要求 NRIC/FIN 等 / Application requires NRIC/FIN" },
+        "global_quota": { "type": ["boolean", "null"], "description": "全球限额岗位（R8） / Global-quota posting" }
+      }
+    },
+    "match": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+        "reasons": { "type": "array", "items": { "type": "string" }, "description": "匹配理由（母清单展示） / Match reasons" },
+        "concerns": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["captcha_known", "signup_required", "sso_required", "long_form", "quota_limited", "global_quota", "id_number_required", "unclear_dates", "salary_undisclosed", "bachelor_only", "resume_language", "declaration_heavy", "external_redirect", "other"] },
+      "description": "已知风险（来自 playbook 或 JD） / Known risks"
+    },
+    "screening": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "decision": { "type": "string", "enum": ["pending", "recommend", "skip", "dedup_hit", "dedup_review", "approved", "excluded_by_user"] },
+        "reason_code": { "type": ["string", "null"], "enum": ["date_window_mismatch", "degree_mismatch", "salary_below_floor", "unpaid", "already_applied", "blacklist", "reserve_for_referral", "global_quota", "industry_excluded", "title_excluded", "id_number_required", "payment_required", "resume_language_missing", "unknown_required_field", "quota_reached", "job_closed", "user_excluded", "work_pass_mismatch", "start_immediately", "other", null] },
+        "reason": { "type": ["string", "null"] },
+        "dedup_match": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "job_id": { "type": "string" },
+            "similarity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "prior_status": { "type": ["string", "null"] }
+          }
+        },
+        "decided_at": { "type": ["string", "null"] }
+      }
+    },
+    "discovered_at": { "type": "string" },
+    "run_id": { "type": "string", "pattern": "^run_[0-9]{8}_[0-9]{6}$" },
+    "notes": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "platform": { "type": "string", "enum": ["jobstreet", "linkedin_easy_apply", "linkedin_external", "mycareersfuture", "workday", "successfactors", "greenhouse", "ashby", "smartrecruiters", "lever", "workable", "company_custom", "email", "other", "unknown"] },
+    "channel": { "type": "string", "enum": ["company_site", "linkedin", "jobstreet", "mycareersfuture", "email", "other"] }
+  }
+}

@@ -1,0 +1,475 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-apply.local/schemas/profile.schema.json",
+  "title": "auto-apply candidate profile / 候选人档案",
+  "description": "求职者档案（脱敏）。只存本机 ~/auto-apply-data/<profile_id>/profile.json，由 Intake Agent 在用户逐条确认后写入。禁止字段：任何密码、证件号（NRIC/FIN/护照/身份证）、银行信息；Codex 运行时的求职专用密码只存 secrets.env，永不进本文件。任何非 required 字段允许 null（= 用户跳过/不知道）。 / Candidate profile (no secrets). Stored locally only. Forbidden: passwords, national ID numbers (NRIC/FIN/passport/ID card), bank details; the Codex job-search password lives only in secrets.env. Any non-required field may be null (= skipped/unknown).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "identity", "intent", "materials", "policy"],
+  "not": { "$ref": "#/$defs/forbidden_keys" },
+  "properties": {
+    "meta": {
+      "description": "元信息 / Metadata",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile_id", "language", "created_at", "version"],
+      "properties": {
+        "profile_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$", "description": "档案 id，也是数据目录名 / Profile id, also the data directory name" },
+        "language": { "type": "string", "enum": ["zh", "en"], "description": "用户界面语言 / UI language for prompts and reports" },
+        "created_at": { "$ref": "#/$defs/datetime" },
+        "updated_at": { "anyOf": [{ "$ref": "#/$defs/datetime" }, { "type": "null" }] },
+        "version": { "type": "string", "const": "1", "description": "profile schema 版本 / profile schema version" },
+        "runtime": { "type": ["string", "null"], "enum": ["claude_code", "codex", null], "description": "最近使用的运行时 / Last runtime used" },
+        "intake_signed_at": { "anyOf": [{ "$ref": "#/$defs/datetime" }, { "type": "null" }], "description": "用户对档案整体签字时间 / When the user signed off the profile" }
+      }
+    },
+
+    "identity": {
+      "description": "身份与联系方式 / Identity and contact. 不含证件号 / No ID numbers.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "emails"],
+      "not": { "$ref": "#/$defs/forbidden_keys" },
+      "properties": {
+        "name": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["full"],
+          "properties": {
+            "full": { "type": "string", "minLength": 1, "maxLength": 120, "description": "申请表使用的完整姓名（拉丁字母，与简历一致） / Full name as used on applications (Latin script, matches resume)" },
+            "given": { "type": ["string", "null"], "maxLength": 80, "description": "名 / Given name(s)" },
+            "family": { "type": ["string", "null"], "maxLength": 80, "description": "姓 / Family name" },
+            "native": { "type": ["string", "null"], "maxLength": 80, "description": "母语姓名（如中文名），可空 / Name in native script, optional" },
+            "name_order": { "type": ["string", "null"], "enum": ["given_first", "family_first", null], "description": "简历上的姓名顺序，用于 R10 复核 / Name order on the resume, used by the pre-submit check" },
+            "preferred": { "type": ["string", "null"], "maxLength": 80, "description": "称呼 / Preferred name" }
+          }
+        },
+        "emails": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["primary"],
+          "properties": {
+            "primary": { "$ref": "#/$defs/email", "description": "主邮箱，表单默认填此 / Primary email used on forms" },
+            "signup": { "anyOf": [{ "$ref": "#/$defs/email" }, { "type": "null" }], "description": "新注册账号专用邮箱，空则用主邮箱 / Email reserved for new ATS accounts; falls back to primary" },
+            "others": { "type": "array", "items": { "$ref": "#/$defs/email" }, "description": "旧账号绑定的其它邮箱（用于一致性门与登录识别） / Other emails bound to old accounts" }
+          }
+        },
+        "phones": {
+          "type": "array",
+          "description": "手机（区号分离，可多个，第一个为默认） / Phones with separated country code; first is default",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["country_code", "number"],
+            "properties": {
+              "country_code": { "type": "string", "pattern": "^\\+[0-9]{1,4}$", "description": "如 +65 / e.g. +65" },
+              "number": { "type": "string", "pattern": "^[0-9 ]{4,20}$" },
+              "label": { "type": ["string", "null"], "enum": ["sg", "home", "other", null] },
+              "is_default": { "type": ["boolean", "null"] }
+            }
+          }
+        },
+        "gender": { "type": ["string", "null"], "enum": ["female", "male", "non_binary", "prefer_not_to_say", "other", null], "description": "可空；EEO 题默认另有 policy.eeo_default / Optional; EEO questions follow policy.eeo_default" },
+        "date_of_birth": { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }], "description": "可空；只在表单必填时使用 / Optional; only used when a form requires it" },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "country": { "type": ["string", "null"] },
+            "city": { "type": ["string", "null"] },
+            "line1": { "type": ["string", "null"], "maxLength": 200 },
+            "postal_code": { "type": ["string", "null"], "maxLength": 20 }
+          }
+        }
+      }
+    },
+
+    "status": {
+      "description": "身份与工作许可（问诊第 2 轮） / Immigration status and work authorisation (intake round 2). 不收集证件号 / No ID numbers collected.",
+      "type": "object",
+      "additionalProperties": false,
+      "not": { "$ref": "#/$defs/forbidden_keys" },
+      "properties": {
+        "nationality": { "type": ["string", "null"], "description": "国籍（ISO 3166 名称或代码） / Nationality" },
+        "country_of_residence": { "type": ["string", "null"] },
+        "work_pass": {
+          "type": ["string", "null"],
+          "enum": ["citizen", "permanent_resident", "student_pass", "employment_pass", "s_pass", "work_permit", "dependant_pass", "ltvp", "training_employment_pass", "work_holiday_pass", "other", "none", "unknown", null],
+          "description": "当前在新加坡的身份 / Current status in Singapore (Citizen, PR, Student's Pass, EP, S Pass, WP, DP, LTVP, TEP, WHP, other, none)"
+        },
+        "work_pass_other_label": { "type": ["string", "null"], "description": "work_pass=other 时的说明 / Free text when work_pass is other" },
+        "work_pass_expiry": { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+        "authorised_to_work_in_sg": { "type": ["boolean", "null"], "description": "ATS 常见题：是否合法可在新加坡工作 / Common ATS question: legally authorised to work in Singapore" },
+        "requires_sponsorship_now": { "type": ["boolean", "null"], "description": "现在是否需要工作准证赞助 / Requires work pass sponsorship now" },
+        "requires_sponsorship_future": { "type": ["boolean", "null"], "description": "毕业后/未来是否需要赞助 / Requires sponsorship in future" },
+        "internship_nature": {
+          "type": ["string", "null"],
+          "enum": ["credit_bearing", "school_approved_non_credit", "vacation", "leave_of_absence", "not_applicable", "unknown", null],
+          "description": "实习性质 / Nature of internship (credit-bearing, school-approved, vacation, LOA)"
+        },
+        "work_pass_exempt_for_internship": { "type": ["boolean", "null"], "description": "实习期是否免工作准证（如 Student's Pass 学分实习） / Internship exempt from work pass (e.g. credit-bearing on Student's Pass)" },
+        "school_can_issue_letter": { "type": ["boolean", "null"], "description": "学校能否出实习信 / School can issue an internship letter" },
+        "notes": { "type": ["string", "null"], "maxLength": 1000 }
+      }
+    },
+
+    "education": {
+      "description": "教育经历（多段，从简历解析后由用户确认） / Education, parsed from resume and confirmed",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["institution", "degree"],
+        "properties": {
+          "institution": { "type": "string", "minLength": 1 },
+          "faculty": { "type": ["string", "null"] },
+          "major": { "type": ["string", "null"] },
+          "degree": { "type": "string", "enum": ["diploma", "bachelor", "master", "phd", "other"] },
+          "degree_title": { "type": ["string", "null"], "description": "如 MSc Communications Engineering / e.g. MSc Communications Engineering" },
+          "start": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] },
+          "end_expected": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }], "description": "预计毕业年月（R3 一致性门比对项） / Expected graduation YYYY-MM (checked by the consistency gate)" },
+          "is_current": { "type": ["boolean", "null"] },
+          "gpa": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": ["number", "null"] },
+              "scale": { "type": ["number", "null"] }
+            }
+          },
+          "rank_or_honours": { "type": ["string", "null"] },
+          "location": { "type": ["string", "null"] },
+          "confirmed_by_user": { "type": ["boolean", "null"] }
+        }
+      }
+    },
+
+    "experience": {
+      "description": "实习/工作/项目/竞赛/论文，逐条由用户确认；Content Agent 只能引用 facts_card 而非本节 / Experience entries confirmed one by one; Content Agent cites facts_card, not this section",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "organisation", "title"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["internship", "job", "project", "competition", "publication", "volunteer", "other"] },
+          "organisation": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "start": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] },
+          "end": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] },
+          "is_current": { "type": ["boolean", "null"] },
+          "location": { "type": ["string", "null"] },
+          "bullets": { "type": "array", "items": { "type": "string", "maxLength": 600 } },
+          "source": { "type": ["string", "null"], "enum": ["resume", "user_stated", null] },
+          "confirmed_by_user": { "type": ["boolean", "null"] }
+        }
+      }
+    },
+
+    "skills": {
+      "description": "技能 / Skills",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "languages_spoken": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "level": { "type": ["string", "null"], "enum": ["native", "fluent", "professional", "conversational", "basic", null] }
+            }
+          }
+        },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "years_by_skill": {
+          "type": ["object", "null"],
+          "description": "技能 → 年限 / skill name -> years of experience",
+          "additionalProperties": { "type": ["integer", "null"], "minimum": 0, "maximum": 60 }
+        },
+        "proficiency": {
+          "type": ["object", "null"],
+          "description": "技能 → 熟练度 / skill name -> proficiency level",
+          "additionalProperties": { "type": ["string", "null"], "enum": ["basic", "intermediate", "advanced", null] }
+        },
+        "certifications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "issuer": { "type": ["string", "null"] },
+              "date": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] }
+            }
+          }
+        },
+        "other": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "intent": {
+      "description": "求职意向（第 3 轮） / Job-search intent (round 3)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["types", "locations"],
+      "properties": {
+        "types": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["internship", "full_time", "part_time", "graduate_programme", "contract"] }, "description": "岗位类型，可多选 / Job types" },
+        "keywords": { "type": "array", "items": { "type": "string" }, "description": "方向关键词 3–5 个 / 3–5 direction keywords" },
+        "excluded_directions": { "type": "array", "items": { "type": "string" }, "description": "排除方向（如纯销售、客服） / Excluded directions" },
+        "locations": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "地点，可多个，如 Singapore / Locations" },
+        "remote_ok": { "type": ["boolean", "null"] },
+        "relocation_ok": { "type": ["boolean", "null"] },
+        "window": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "start": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] },
+            "end": { "anyOf": [{ "$ref": "#/$defs/year_month" }, { "type": "null" }] },
+            "flexibility_weeks": { "type": ["integer", "null"], "minimum": 0, "maximum": 52, "description": "窗口两端可容忍的偏移周数 / Tolerated shift in weeks" }
+          },
+          "description": "实习/到岗窗口 / Availability window"
+        },
+        "hours_per_week": { "type": ["integer", "null"], "minimum": 1, "maximum": 80 },
+        "min_commitment_months": { "type": ["number", "null"], "minimum": 0 },
+        "earliest_start": { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }] },
+        "term_time_vs_vacation_notes": { "type": ["string", "null"] },
+        "degree_level_targets": { "type": "array", "items": { "type": "string", "enum": ["diploma", "bachelor", "master", "phd", "any"] }, "description": "投哪个学历口径的岗 / Degree levels to target" },
+        "apply_to_bachelor_only_postings": { "type": ["boolean", "null"], "description": "只招本科的岗投不投 / Apply to postings restricted to bachelor's students" },
+        "can_start_immediately": { "type": ["boolean", "null"], "description": "是否可立即到岗 / Can start immediately" },
+        "full_time": { "type": ["boolean", "null"], "description": "是否可全职到岗（区别于兼职/学期中） / Available full-time (as opposed to part-time)" },
+        "days_per_week": { "type": ["integer", "null"], "minimum": 1, "maximum": 7, "description": "每周可到岗天数 / Days available per week" },
+        "notice_period": { "type": ["string", "null"], "description": "需要的通知期（自由文本，如「2周」「immediate」） / Notice period needed (free text, e.g. \"2 weeks\", \"immediate\")" },
+        "work_mode": { "type": ["string", "null"], "enum": ["onsite", "hybrid", "remote", "any", null], "description": "到岗方式偏好 / Preferred work mode" }
+      }
+    },
+
+    "salary": {
+      "description": "薪资与条件（第 4 轮） / Salary and conditions (round 4)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currency": { "type": ["string", "null"], "pattern": "^[A-Z]{3}$", "description": "ISO 4217，如 SGD / e.g. SGD" },
+        "period": { "type": ["string", "null"], "enum": ["month", "day", "hour", "year", null] },
+        "current": { "type": ["number", "null"], "minimum": 0, "description": "当前薪资；在读学生可填 0 或 null / Current salary; students may leave 0 or null" },
+        "expected_min": { "type": ["number", "null"], "minimum": 0 },
+        "expected_max": { "type": ["number", "null"], "minimum": 0 },
+        "hard_floor": { "type": ["number", "null"], "minimum": 0, "description": "硬下限，明确低于此不投 / Hard floor; postings explicitly below are skipped" },
+        "apply_if_undisclosed": { "type": ["boolean", "null"], "description": "未披露薪资是否投 / Apply when salary is not disclosed" },
+        "allow_unpaid": { "type": ["boolean", "null"], "description": "无薪实习是否投 / Apply to unpaid internships" },
+        "negotiable": { "type": ["boolean", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+
+    "rules": {
+      "description": "排除与策略（第 5 轮，R8/D13） / Exclusions and strategy (round 5)",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "company_blacklist": { "type": "array", "items": { "$ref": "#/$defs/company_rule" }, "description": "黑名单（含已饱和公司） / Blacklist incl. saturated companies" },
+        "industry_exclusions": { "type": "array", "items": { "type": "string" }, "description": "行业排除，如 gambling/tobacco/defence / Excluded industries" },
+        "title_exclusions": { "type": "array", "items": { "type": "string" }, "description": "岗位名包含即排除 / Title substrings to exclude" },
+        "reserve_for_referral": { "type": "array", "items": { "$ref": "#/$defs/company_rule" }, "description": "保留内推名单：不走 ATS 自动投 / Companies reserved for referral; never auto-apply" },
+        "global_quota_rule": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "mode": { "type": "string", "enum": ["ignore", "skip_if_in_reserve_list", "skip_all_global_quota"], "description": "全球限额岗位处理：忽略 / 仅保留内推公司跳过 / 全部跳过 / How to treat global-quota postings" },
+            "notes": { "type": ["string", "null"] }
+          }
+        },
+        "per_company_max": { "type": ["integer", "null"], "minimum": 1, "maximum": 3, "default": 3, "description": "同公司上限，对齐 SECURITY 节流上限 / Max applications per company, aligned with the SECURITY throttling cap" },
+        "company_caps": {
+          "type": "array",
+          "description": "按公司单独设置上限（覆盖 per_company_max） / Per-company caps overriding per_company_max",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["company", "max_applications"],
+            "properties": {
+              "company": { "type": "string", "minLength": 1 },
+              "max_applications": { "type": "integer", "minimum": 0, "maximum": 50 }
+            }
+          }
+        },
+        "notes": { "type": ["string", "null"], "maxLength": 1000, "description": "策略补充说明 / Free-text notes on the exclusion/strategy rules" },
+        "per_round": { "type": ["integer", "null"], "minimum": 1, "maximum": 100, "default": 10 },
+        "per_day": { "type": ["integer", "null"], "minimum": 1, "maximum": 100, "default": 20 },
+        "channel_priority": { "type": "array", "items": { "$ref": "#/$defs/channel" }, "description": "渠道优先级，靠前优先 / Channel priority, first wins" },
+        "existing_accounts": {
+          "type": "array",
+          "description": "已有账号的平台清单（避免重复注册；不含密码） / Platforms with existing accounts (no passwords)",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["platform"],
+            "properties": {
+              "platform": { "$ref": "#/$defs/platform" },
+              "login_email": { "anyOf": [{ "$ref": "#/$defs/email" }, { "type": "null" }] },
+              "saved_in_browser": { "type": ["boolean", "null"], "description": "密码是否已存浏览器密码管理器 / Password saved in the browser password manager" },
+              "notes": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "legacy_ledger_imported": { "type": ["boolean", "null"], "description": "旧台账是否已导入 / Legacy ledger imported" }
+      }
+    },
+
+    "materials": {
+      "description": "材料（第 0 轮） / Materials (round 0). 简历不生成、不翻译（D6） / Resumes are never generated or translated.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resumes"],
+      "not": { "$ref": "#/$defs/forbidden_keys" },
+      "properties": {
+        "resumes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "language", "label"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1, "description": "本机绝对路径 / Absolute local path" },
+              "language": { "type": "string", "enum": ["en", "zh", "other"] },
+              "label": { "type": "string", "minLength": 1, "description": "用途标签，如 english_refined / Purpose label" },
+              "version": { "type": ["string", "null"] },
+              "is_default": { "type": ["boolean", "null"] },
+              "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+              "known_mismatches": { "type": "array", "items": { "type": "string" }, "description": "用户已知并接受的简历-档案差异（R3 不再重复报警） / Accepted resume/profile differences" },
+              "notes": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "job_list_paths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "用户自带的母清单文件路径（R2 用户自带岗位清单场景） / Paths to the user's own master job-list files (R2 user-supplied candidate list)" },
+        "portfolio_url": { "type": ["string", "null"] },
+        "github_url": { "type": ["string", "null"] },
+        "linkedin_url": { "type": ["string", "null"] },
+        "website_url": { "type": ["string", "null"] },
+        "transcript_path": { "type": ["string", "null"] },
+        "cover_letter_template_path": { "type": ["string", "null"], "description": "用户自己的 CL 模板（可选） / Optional user-supplied cover letter template" },
+        "certificates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "path": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+
+    "policy": {
+      "description": "内容、声明与授权（第 6–7 轮） / Content, declarations and authorisation (rounds 6–7)",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["submit_mode"],
+      "not": { "$ref": "#/$defs/forbidden_keys" },
+      "properties": {
+        "submit_mode": { "type": "string", "enum": ["confirm", "autopilot"], "description": "confirm=停在提交前等用户；autopilot=需书面开启 / confirm stops before submit; autopilot requires written consent" },
+        "autopilot_consent": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["enabled_at", "statement"],
+          "properties": {
+            "enabled_at": { "$ref": "#/$defs/datetime" },
+            "statement": { "type": "string", "minLength": 10, "description": "用户书面授权原句 / The user's written consent sentence" }
+          },
+          "description": "submit_mode=autopilot 时必须存在 / Required when submit_mode is autopilot"
+        },
+        "gate_mode": { "type": ["string", "null"], "enum": ["interactive", "batch", null], "default": "interactive", "description": "关口处理：interactive=逐个同步问；batch=集中到待办清单 / Gate handling: interactive (ask now) or batch (collect in pending list)" },
+        "open_question_policy": { "type": ["string", "null"], "enum": ["skip", "approve", "auto", null], "default": "approve", "description": "开放题：跳过 / 生成后批准 / 自动填 / Open questions: skip, approve after draft, or auto-fill" },
+        "cover_letter_policy": { "type": ["string", "null"], "enum": ["never", "approve", "auto", null], "default": "approve" },
+        "allow_ai_self_intro": { "type": ["boolean", "null"], "description": "是否允许依据事实卡生成一句话自我介绍 / Allow a one-line self-intro generated from facts_card" },
+        "eeo_default": { "type": ["string", "null"], "enum": ["prefer_not_to_say", "answer_from_profile", "ask_me", null], "default": "prefer_not_to_say", "description": "EEO 类（性别/种族/残障/退伍）默认答法 / Default for EEO questions" },
+        "declarations": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "必须本人预设的声明题；null = 每次遇到都问本人（触发 personal_declaration 关口） / Declarations preset by the user; null = ask me each time",
+          "properties": {
+            "criminal_record": { "$ref": "#/$defs/declaration_answer" },
+            "bankruptcy": { "$ref": "#/$defs/declaration_answer" },
+            "vaccination_status": { "$ref": "#/$defs/declaration_answer" },
+            "relatives_in_company": { "$ref": "#/$defs/declaration_answer" },
+            "previously_applied_or_employed": { "$ref": "#/$defs/declaration_answer" },
+            "non_compete": { "$ref": "#/$defs/declaration_answer" },
+            "background_check_consent": { "$ref": "#/$defs/declaration_answer" },
+            "data_processing_consent": { "$ref": "#/$defs/declaration_answer" },
+            "other": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["question", "answer"],
+                "properties": {
+                  "question": { "type": "string" },
+                  "answer": { "$ref": "#/$defs/declaration_answer" }
+                }
+              }
+            }
+          }
+        },
+        "mail_readonly_consent": { "type": ["boolean", "null"], "description": "允许只读邮箱查回执（D10） / Allow read-only mailbox access for tracking" },
+        "mail_backend_preference": { "type": ["string", "null"], "enum": ["connector", "webmail", "none", null] },
+        "source_channel_default": { "anyOf": [{ "$ref": "#/$defs/channel" }, { "type": "null" }], "description": "候选来源默认渠道 / Default channel when adding candidates" },
+        "platform_option_overrides": {
+          "type": ["object", "null"],
+          "description": "某平台下拉缺少标准选项时的替代填法；键为 platform（见 $defs/platform），值为「字段名 → 替代选项文本」 / Per-platform fallback text when a dropdown lacks the standard option (e.g. no Student's Pass choice); key is a platform id, value maps field label to override text",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": ["string", "null"] }
+          }
+        },
+        "allow_verification_link_click": { "type": ["boolean", "null"], "description": "允许 Agent 点击邮箱验证链接 / Allow the agent to click email verification links" },
+        "report_every_n": { "type": ["integer", "null"], "minimum": 1, "maximum": 50, "default": 5, "description": "每 N 份汇报一次 / Report every N applications" },
+        "platform_tos_acknowledged": { "type": ["boolean", "null"], "description": "已阅读平台 ToS 免责说明（D13） / Platform ToS disclaimer acknowledged" },
+        "pending_item_expiry_days": { "type": ["integer", "null"], "minimum": 1, "maximum": 90, "default": 7 }
+      }
+    }
+  },
+
+  "$defs": {
+    "forbidden_keys": {
+      "description": "任何对象出现这些键即拒绝 / Presence of any of these keys is rejected",
+      "anyOf": [
+        { "required": ["password"] }, { "required": ["passwords"] }, { "required": ["password_hash"] }, { "required": ["pin"] },
+        { "required": ["nric"] }, { "required": ["fin"] }, { "required": ["passport"] }, { "required": ["passport_number"] }, { "required": ["passport_no"] },
+        { "required": ["id_number"] }, { "required": ["national_id"] }, { "required": ["identity_card"] }, { "required": ["ic_number"] }, { "required": ["ssn"] }, { "required": ["tax_id"] },
+        { "required": ["bank"] }, { "required": ["bank_account"] }, { "required": ["bank_name"] }, { "required": ["iban"] }, { "required": ["swift"] },
+        { "required": ["card_number"] }, { "required": ["credit_card"] }, { "required": ["cvv"] },
+        { "required": ["secret"] }, { "required": ["secrets"] }, { "required": ["api_key"] }, { "required": ["token"] }, { "required": ["otp"] }
+      ]
+    },
+    "email": { "type": "string", "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "maxLength": 254 },
+    "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "YYYY-MM-DD" },
+    "year_month": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$", "description": "YYYY-MM" },
+    "datetime": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?([+-][0-9]{2}:[0-9]{2}|Z)?$", "description": "ISO-8601" },
+    "declaration_answer": { "type": ["string", "null"], "maxLength": 300, "description": "本人预设答案；null = 问本人 / Preset answer; null = ask the user" },
+    "company_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "reason": { "type": ["string", "null"] },
+        "until": { "anyOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }], "description": "到期自动失效，可空 / Optional expiry" }
+      }
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["jobstreet", "linkedin_easy_apply", "linkedin_external", "mycareersfuture", "workday", "successfactors", "greenhouse", "ashby", "smartrecruiters", "lever", "workable", "company_custom", "email", "other", "unknown"]
+    },
+    "channel": {
+      "type": "string",
+      "enum": ["company_site", "linkedin", "jobstreet", "mycareersfuture", "email", "other"]
+    }
+  }
+}

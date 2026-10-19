@@ -1,0 +1,22 @@
+# auto-apply — minimal project metadata.
+# No build backend on purpose: the skill is installed by symlink (install.sh), not by pip.
+# No runtime dependencies on purpose: Python 3.9+ standard library only (BRIEF D12).
+
+[project]
+name = "auto-apply"
+version = "0.1.0"
+description = "AI job-application pipeline skill for students in Singapore (Claude Code primary, Codex adapter). Standard library only; all personal data stays local."
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+# Developer conveniences only. Never required to run the skill or the verify scripts.
+dev = ["pytest", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+files = ["skills/auto-apply/scripts/autoapply"]

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-apply.local/schemas/pending_action.schema.json",
+  "title": "auto-apply pending user action / 待用户动作项",
+  "description": "runs/<run_id>/pending_actions.jsonl 每行一个；同一 action_id 多行时以最后一行为准；pending_actions.md 由此渲染。文本字段一律脱敏，绝不含密码/OTP/证件号。 / One per line in pending_actions.jsonl (last line per action_id wins); pending_actions.md is rendered from it. Text fields are redacted; never contain passwords, OTPs or ID numbers.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action_id", "run_id", "gate_type", "scope", "mode", "status", "opened_at", "agent_message", "user_instructions"],
+  "properties": {
+    "action_id": { "type": "string", "pattern": "^pa_[0-9]{8}_[a-f0-9]{6}$" },
+    "run_id": { "type": "string", "pattern": "^run_[0-9]{8}_[0-9]{6}$" },
+    "app_id": { "type": ["string", "null"], "pattern": "^app_[0-9]{8}_[a-f0-9]{6}$", "description": "run 级关口为 null / null for run-scoped gates" },
+    "job_ref": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "company": { "type": "string" },
+        "title": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "platform": { "type": ["string", "null"] }
+      }
+    },
+    "gate_type": { "type": "string", "enum": ["password_or_signup", "captcha", "otp", "email_verification_link", "id_number", "payment", "personal_declaration", "final_submit", "content_approval", "resume_missing_language", "unknown_required_field", "file_upload_blocked", "session_expired", "dedup_review", "queue_approval", "consistency_mismatch", "browser_disconnected", "quota_exhausted"] },
+    "scope": { "type": "string", "enum": ["item", "run"] },
+    "mode": { "type": "string", "enum": ["sync", "async"] },
+    "priority": { "type": ["string", "null"], "enum": ["high", "normal", "low", null] },
+    "status": { "type": "string", "enum": ["open", "resolved", "skipped", "user_completed", "expired", "abandoned"] },
+    "opened_at": { "type": "string" },
+    "expires_at": { "type": ["string", "null"] },
+    "resolved_at": { "type": ["string", "null"] },
+    "resolution_note": { "type": ["string", "null"], "maxLength": 500 },
+    "playbook_step": { "type": ["string", "null"], "description": "Executor 卡住的步骤 id / Playbook step id where the executor stopped" },
+    "context": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": ["string", "null"] },
+        "field_label": { "type": ["string", "null"], "description": "触发的字段/题目原文（脱敏） / Field or question label, redacted" },
+        "draft_saved": { "type": ["boolean", "null"] },
+        "draft_url": { "type": ["string", "null"] },
+        "options": { "type": "array", "items": { "type": "string" }, "description": "给用户的可选处置（如 consistency_mismatch 的 ①②③） / Options offered to the user" },
+        "missing_fields": { "type": "array", "items": { "type": "string" }, "description": "unknown_required_field 时的字段名列表 / Missing field names" }
+      }
+    },
+    "agent_message": { "$ref": "#/$defs/bilingual", "description": "Agent 对用户说的话 / What the agent tells the user" },
+    "user_instructions": { "$ref": "#/$defs/bilingual", "description": "用户该做什么 / What the user should do" },
+    "resume_instructions": { "type": ["string", "null"], "maxLength": 500, "description": "恢复后 Agent 将做什么（给 Agent 自己看） / What the agent will do after resume" },
+    "runtime": { "type": ["string", "null"], "enum": ["claude_code", "codex", null] }
+  },
+  "$defs": {
+    "bilingual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["zh"],
+      "properties": {
+        "zh": { "type": "string", "minLength": 1, "maxLength": 800 },
+        "en": { "type": ["string", "null"], "maxLength": 800 }
+      }
+    }
+  }
+}

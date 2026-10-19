@@ -1,0 +1,273 @@
+{
+  "meta": {
+    "profile_id": "priya_nair",
+    "language": "en",
+    "created_at": "2026-09-05T09:40:00+08:00",
+    "updated_at": "2026-09-05T11:05:00+08:00",
+    "version": "1",
+    "runtime": "claude_code",
+    "intake_signed_at": "2026-09-05T11:05:00+08:00"
+  },
+  "identity": {
+    "name": {
+      "full": "Priya Nair",
+      "given": "Priya",
+      "family": "Nair",
+      "native": null,
+      "name_order": "given_first",
+      "preferred": "Priya"
+    },
+    "emails": {
+      "primary": "priya.nair@example.com",
+      "signup": "priya.nair.jobs@example.com",
+      "others": ["p.nair@example.sg"]
+    },
+    "phones": [
+      { "country_code": "+65", "number": "0000 1234", "label": "sg", "is_default": true },
+      { "country_code": "+91", "number": "00000 00000", "label": "home", "is_default": false }
+    ],
+    "gender": "prefer_not_to_say",
+    "date_of_birth": null,
+    "address": {
+      "country": "Singapore",
+      "city": "Singapore",
+      "line1": "10 Sample Avenue #05-05",
+      "postal_code": "000000"
+    }
+  },
+  "status": {
+    "nationality": "India",
+    "country_of_residence": "Singapore",
+    "work_pass": "student_pass",
+    "work_pass_other_label": null,
+    "work_pass_expiry": "2027-07-31",
+    "authorised_to_work_in_sg": true,
+    "requires_sponsorship_now": false,
+    "requires_sponsorship_future": true,
+    "internship_nature": "credit_bearing",
+    "work_pass_exempt_for_internship": true,
+    "school_can_issue_letter": true,
+    "notes": "Credit-bearing internship approved by the faculty for the 2027 January semester; letter available on request."
+  },
+  "education": [
+    {
+      "institution": "National University of Singapore",
+      "faculty": "School of Computing",
+      "major": "Computer Science",
+      "degree": "master",
+      "degree_title": "Master of Computing (Computer Science)",
+      "start": "2025-08",
+      "end_expected": "2027-06",
+      "is_current": true,
+      "gpa": null,
+      "rank_or_honours": null,
+      "location": "Singapore",
+      "confirmed_by_user": true
+    },
+    {
+      "institution": "Sample Institute of Technology",
+      "faculty": "Department of Computer Science and Engineering",
+      "major": "Computer Science and Engineering",
+      "degree": "bachelor",
+      "degree_title": "B.Tech Computer Science and Engineering",
+      "start": "2020-08",
+      "end_expected": "2024-05",
+      "is_current": false,
+      "gpa": { "value": 8.6, "scale": 10 },
+      "rank_or_honours": "First Class with Distinction",
+      "location": "Chennai, India",
+      "confirmed_by_user": true
+    }
+  ],
+  "experience": [
+    {
+      "kind": "internship",
+      "organisation": "Example Robotics Pte Ltd",
+      "title": "Software Engineering Intern",
+      "start": "2026-05",
+      "end": "2026-08",
+      "is_current": false,
+      "location": "Singapore",
+      "bullets": [
+        "Built a data-labelling pipeline in Python that processed 12,000 images per day for a warehouse-navigation model.",
+        "Reduced model evaluation time from 40 minutes to 9 minutes by batching inference on a shared GPU node.",
+        "Wrote 35 unit tests covering the ingestion service; test coverage rose from 41% to 78%."
+      ],
+      "source": "resume",
+      "confirmed_by_user": true
+    },
+    {
+      "kind": "job",
+      "organisation": "Sample Analytics Ltd",
+      "title": "Junior Data Engineer",
+      "start": "2024-07",
+      "end": "2025-06",
+      "is_current": false,
+      "location": "Bengaluru, India",
+      "bullets": [
+        "Maintained nightly ETL jobs loading about 3 million rows into a PostgreSQL warehouse.",
+        "Migrated 14 reporting dashboards from a legacy BI tool to Metabase with zero reported data mismatches."
+      ],
+      "source": "resume",
+      "confirmed_by_user": true
+    },
+    {
+      "kind": "project",
+      "organisation": "National University of Singapore",
+      "title": "Course project: retrieval-augmented question answering over lecture notes",
+      "start": "2026-01",
+      "end": "2026-04",
+      "is_current": false,
+      "location": "Singapore",
+      "bullets": [
+        "Team of 3; implemented chunking, embedding and retrieval with a local vector index; answered 200 held-out questions with 71% exact match."
+      ],
+      "source": "resume",
+      "confirmed_by_user": true
+    },
+    {
+      "kind": "competition",
+      "organisation": "Sample Hackathon 2025",
+      "title": "Second place, logistics track",
+      "start": "2025-10",
+      "end": "2025-10",
+      "is_current": false,
+      "location": "Singapore",
+      "bullets": [
+        "Second place among 42 teams with a route-optimisation prototype built in 36 hours."
+      ],
+      "source": "resume",
+      "confirmed_by_user": true
+    }
+  ],
+  "skills": {
+    "languages_spoken": [
+      { "name": "English", "level": "fluent" },
+      { "name": "Malayalam", "level": "native" },
+      { "name": "Hindi", "level": "professional" }
+    ],
+    "tools": ["Python", "SQL", "PostgreSQL", "PyTorch", "Docker", "Git", "Metabase"],
+    "years_by_skill": { "Python": 3, "SQL": 2 },
+    "proficiency": { "SQL": "intermediate", "PyTorch": "basic" },
+    "certifications": [
+      { "name": "Sample Cloud Practitioner", "issuer": "Sample Cloud Corp", "date": "2025-03" }
+    ],
+    "other": ["Technical writing"]
+  },
+  "intent": {
+    "types": ["internship"],
+    "keywords": ["machine learning engineer", "data engineer", "backend", "applied AI"],
+    "excluded_directions": ["pure sales", "customer support", "pure hardware"],
+    "locations": ["Singapore"],
+    "remote_ok": false,
+    "relocation_ok": false,
+    "window": { "start": "2027-01", "end": "2027-06", "flexibility_weeks": 2 },
+    "hours_per_week": 40,
+    "min_commitment_months": 5,
+    "earliest_start": "2027-01-04",
+    "term_time_vs_vacation_notes": "Full-time only during the credit-bearing semester; not available for part-time work during term.",
+    "degree_level_targets": ["master", "any"],
+    "apply_to_bachelor_only_postings": false,
+    "can_start_immediately": false,
+    "full_time": true,
+    "days_per_week": 5,
+    "notice_period": "Not employed; available from 2027-01-04",
+    "work_mode": "hybrid"
+  },
+  "salary": {
+    "currency": "SGD",
+    "period": "month",
+    "current": 0,
+    "expected_min": 1800,
+    "expected_max": 2500,
+    "hard_floor": 1500,
+    "apply_if_undisclosed": true,
+    "allow_unpaid": false,
+    "negotiable": true,
+    "notes": null
+  },
+  "rules": {
+    "company_blacklist": [
+      { "name": "Example Casino Group", "reason": "industry exclusion", "until": null },
+      { "name": "Sample Telecom Pte Ltd", "reason": "already applied 3 times in 2026-08", "until": "2026-12-31" }
+    ],
+    "industry_exclusions": ["gambling", "tobacco"],
+    "title_exclusions": ["sales", "telemarketing", "driver"],
+    "reserve_for_referral": [
+      { "name": "Sample Cloud Corp", "reason": "alumni referral in progress", "until": "2027-03-31" }
+    ],
+    "global_quota_rule": { "mode": "skip_if_in_reserve_list", "notes": "Global-quota postings from companies not on the referral list may be applied to." },
+    "per_company_max": 3,
+    "company_caps": [
+      { "company": "Sample Cloud Corp", "max_applications": 1 }
+    ],
+    "notes": "Only apply to postings that explicitly mention Singapore; skip agency-posted listings and roles requiring immediate start.",
+    "per_round": 10,
+    "per_day": 20,
+    "channel_priority": ["company_site", "linkedin", "jobstreet", "mycareersfuture", "email", "other"],
+    "existing_accounts": [
+      { "platform": "linkedin_easy_apply", "login_email": "priya.nair@example.com", "saved_in_browser": true, "notes": null },
+      { "platform": "jobstreet", "login_email": "priya.nair@example.com", "saved_in_browser": true, "notes": null },
+      { "platform": "workday", "login_email": "priya.nair.jobs@example.com", "saved_in_browser": true, "notes": "Example Semiconductor tenant, created during onboarding" }
+    ],
+    "legacy_ledger_imported": false
+  },
+  "materials": {
+    "resumes": [
+      {
+        "path": "/home/example/Documents/resume_priya_nair_en.pdf",
+        "language": "en",
+        "label": "english_default",
+        "version": "2026-08",
+        "is_default": true,
+        "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        "known_mismatches": [],
+        "notes": null
+      }
+    ],
+    "job_list_paths": ["/home/example/Documents/job_list_priya.csv"],
+    "portfolio_url": null,
+    "github_url": "https://github.com/example-priya",
+    "linkedin_url": "https://www.linkedin.com/in/example-priya",
+    "website_url": null,
+    "transcript_path": "/home/example/Documents/transcript_nus_2026.pdf",
+    "cover_letter_template_path": null,
+    "certificates": [
+      { "name": "Sample Cloud Practitioner", "path": "/home/example/Documents/cert_sample_cloud.pdf" }
+    ]
+  },
+  "policy": {
+    "submit_mode": "confirm",
+    "autopilot_consent": null,
+    "gate_mode": "interactive",
+    "open_question_policy": "approve",
+    "cover_letter_policy": "approve",
+    "allow_ai_self_intro": true,
+    "eeo_default": "prefer_not_to_say",
+    "declarations": {
+      "criminal_record": "No",
+      "bankruptcy": "No",
+      "vaccination_status": null,
+      "relatives_in_company": "No, unless noted at shortlist approval",
+      "previously_applied_or_employed": "No",
+      "non_compete": "No",
+      "background_check_consent": "Yes",
+      "data_processing_consent": "Yes",
+      "other": [
+        { "question": "common:age_18_plus", "answer": "Yes" },
+        { "question": "common:marketing_consent", "answer": "No" },
+        { "question": "common:employee_referral", "answer": "No unless noted at shortlist approval" }
+      ]
+    },
+    "mail_readonly_consent": true,
+    "mail_backend_preference": "connector",
+    "source_channel_default": "linkedin",
+    "platform_option_overrides": {
+      "jobstreet": { "work_rights_option": "I require sponsorship to work in Singapore" }
+    },
+    "allow_verification_link_click": true,
+    "report_every_n": 5,
+    "platform_tos_acknowledged": true,
+    "pending_item_expiry_days": 7
+  }
+}

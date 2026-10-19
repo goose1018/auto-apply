@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-apply.local/schemas/run_state.schema.json",
+  "title": "auto-apply run state / 运行检查点",
+  "description": "runs/<run_id>/run_state.json。Orchestrator 的唯一进度真相；phase 转移只能经 `autoapply runstate set-phase` 且必须符合 ARCHITECTURE §2.3 转移表。 / The orchestrator's single source of progress. Phase transitions go through the runstate script and must match the transition table.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "profile_id", "phase", "started_at", "updated_at", "version"],
+  "properties": {
+    "run_id": { "type": "string", "pattern": "^run_[0-9]{8}_[0-9]{6}$" },
+    "profile_id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$" },
+    "runtime": { "type": ["string", "null"], "enum": ["claude_code", "codex", null] },
+    "mode": { "type": ["string", "null"], "enum": ["apply", "status", "report", null], "description": "/auto-apply 的调用方式 / How the run was invoked" },
+    "phase": { "$ref": "#/$defs/phase" },
+    "previous_phase": { "anyOf": [{ "$ref": "#/$defs/phase" }, { "type": "null" }] },
+    "resume_to": { "anyOf": [{ "$ref": "#/$defs/phase" }, { "type": "null" }], "description": "pending_user 恢复后进入的状态 / Phase to enter after resume" },
+    "suspended_by_gate": { "type": ["string", "null"], "description": "触发 run 级挂起的 gate_id / gate_id that suspended the run" },
+    "started_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "ended_at": { "type": ["string", "null"] },
+    "round": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": { "type": ["integer", "null"], "minimum": 0, "description": "本轮目标份数（去重岗位口径） / Round target in unique jobs" },
+        "per_day_limit": { "type": ["integer", "null"], "minimum": 0 },
+        "per_day_used": { "type": ["integer", "null"], "minimum": 0, "description": "今日已提交动作数（跨 run 由 quota 脚本从台账算） / Submission actions today, computed from ledger" },
+        "submission_actions": { "type": ["integer", "null"], "minimum": 0 },
+        "unique_applied": { "type": ["integer", "null"], "minimum": 0 },
+        "per_company_counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }, "description": "company_norm → 本轮已投数 / company_norm to count this round" }
+      }
+    },
+    "quotas": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "linkedin_daily_remaining": { "type": ["integer", "null"], "minimum": 0, "description": "未知为 null；LinkedIn 实际上限未验证 / null when unknown; LinkedIn's real cap is unverified" },
+        "linkedin_limit_hit_at": { "type": ["string", "null"] },
+        "platform_blocked": { "type": "array", "items": { "type": "string" }, "description": "本轮已达配额/被限的平台 / Platforms exhausted or blocked this run" }
+      }
+    },
+    "browser": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "channel": { "type": ["string", "null"], "enum": ["chrome_extension", "browser_pane", "codex_browser", "none", null] },
+        "status": { "type": ["string", "null"], "enum": ["ok", "disconnected", "unknown", null] },
+        "last_ok_at": { "type": ["string", "null"] },
+        "lease_holder": { "type": ["string", "null"], "description": "当前持写租约的 Agent / Agent holding the write lease" }
+      }
+    },
+    "current_item": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "app_id": { "type": "string", "pattern": "^app_[0-9]{8}_[a-f0-9]{6}$" },
+        "step": { "type": ["string", "null"], "enum": ["open", "login", "fill", "content", "upload", "pre_submit_check", "submit", "verify", "ledger", null] },
+        "playbook_step": { "type": ["string", "null"] },
+        "started_at": { "type": ["string", "null"] }
+      }
+    },
+    "queue_cursor": { "type": ["integer", "null"], "minimum": 0, "description": "apply_queue.jsonl 已处理到的行数 / Lines of apply_queue.jsonl processed" },
+    "counters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "candidates": { "type": "integer", "minimum": 0 },
+        "screened": { "type": "integer", "minimum": 0 },
+        "queued": { "type": "integer", "minimum": 0 },
+        "applied": { "type": "integer", "minimum": 0 },
+        "submitted_unverified": { "type": "integer", "minimum": 0 },
+        "pending_user": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "every_n": { "type": ["integer", "null"], "minimum": 1 },
+        "last_report_at": { "type": ["string", "null"] },
+        "last_report_applied_count": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "checkpoints": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "phase → 该阶段检查点文件的相对路径或完成时间 / phase to checkpoint path or completion time"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["at", "code"],
+        "properties": {
+          "at": { "type": "string" },
+          "code": { "type": "string" },
+          "message": { "type": ["string", "null"], "maxLength": 500, "description": "已脱敏 / Redacted" },
+          "app_id": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "version": { "type": "string", "const": "1" }
+  },
+  "$defs": {
+    "phase": { "type": "string", "enum": ["onboard", "intake", "source", "screen", "apply", "verify", "ledger", "track", "report", "done", "pending_user", "aborted"] }
+  }
+}

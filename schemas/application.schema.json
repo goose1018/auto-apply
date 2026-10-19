@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://auto-apply.local/schemas/application.schema.json",
+  "title": "auto-apply application record / 申请记录",
+  "description": "一次申请（apply_queue.jsonl 每行一个，同步到 ledger.applications）。status=applied 必须有 ≥1 条 qualifies=true 的证据。submission_action_count 与去重岗位数分开计（R1）。 / One application per line; mirrored into ledger.applications. status=applied requires at least one qualifying evidence. Submission actions are counted separately from unique jobs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["app_id", "job_id", "run_id", "channel", "platform", "status", "submission_action_count", "created_at", "updated_at"],
+  "properties": {
+    "app_id": { "type": "string", "pattern": "^app_[0-9]{8}_[a-f0-9]{6}$" },
+    "job_id": { "type": "string", "pattern": "^job_[a-f0-9]{12}$" },
+    "run_id": { "type": "string", "pattern": "^run_[0-9]{8}_[0-9]{6}$" },
+    "profile_id": { "type": ["string", "null"], "pattern": "^[a-z0-9][a-z0-9_-]{1,31}$" },
+    "channel": { "type": "string", "enum": ["company_site", "linkedin", "jobstreet", "mycareersfuture", "email", "other"] },
+    "platform": { "type": "string", "enum": ["jobstreet", "linkedin_easy_apply", "linkedin_external", "mycareersfuture", "workday", "successfactors", "greenhouse", "ashby", "smartrecruiters", "lever", "workable", "company_custom", "email", "other", "unknown"] },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "in_progress", "draft_saved", "pending_user", "ready_to_submit", "submitted_unverified", "applied", "skipped", "failed", "withdrawn", "abandoned"],
+      "description": "流水线状态 / Pipeline status. applied 需合格证据 / applied requires qualifying evidence"
+    },
+    "tracking_status": {
+      "type": ["string", "null"],
+      "enum": ["none", "receipt", "under_review", "assessment", "interview", "offer", "rejected", "closed", null],
+      "description": "投后追踪状态（Tracker 写） / Post-application tracking status"
+    },
+    "approval": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["approved_by_user", "approved_at"],
+      "properties": {
+        "approved_by_user": { "type": "boolean", "const": true, "description": "D7：入队必须为 true / Must be true to enter the queue" },
+        "approved_at": { "type": "string" },
+        "approval_note": { "type": ["string", "null"], "description": "用户强制放行的说明（如疑似重复、超同公司上限） / User override note" }
+      }
+    },
+    "priority": { "type": ["string", "null"], "enum": ["high", "normal", "low", null] },
+    "submission_action_count": { "type": "integer", "minimum": 0, "description": "点提交次数（含重试、跨渠道重复） / Number of submit clicks incl. retries" },
+    "submitted_at": { "type": ["string", "null"] },
+    "applied_confirmed_at": { "type": ["string", "null"], "description": "首条合格证据时间 / Time of first qualifying evidence" },
+    "resume_used": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string" },
+        "language": { "type": "string", "enum": ["en", "zh", "other"] },
+        "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "content_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "status"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["cover_letter", "open_question", "self_intro"] },
+          "question": { "type": ["string", "null"] },
+          "status": { "type": "string", "enum": ["draft", "approved", "filled", "skipped", "rejected"] },
+          "file": { "type": ["string", "null"], "description": "runs/<run>/items/<app>/content/ 下的文件 / File under items/<app>/content/" },
+          "facts_used": { "type": "array", "items": { "type": "string", "pattern": "^f_[0-9]{3}$" }, "description": "引用的事实 id（D9） / Cited fact ids" }
+        }
+      }
+    },
+    "pre_submit_check": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["passed", "checked_at"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "checked_at": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "ok"],
+            "properties": {
+              "name": { "type": "string", "enum": ["name_order", "phone_country_code", "email", "graduation_year", "resume_version", "internship_window", "salary", "work_pass_answer", "sponsorship_answer", "location", "other"] },
+              "expected_ref": { "type": ["string", "null"], "description": "期望值的来源引用（不复制值） / Reference to expected value, not the value" },
+              "seen_masked": { "type": ["string", "null"], "description": "页面所见（脱敏） / Value seen on page, masked" },
+              "ok": { "type": "boolean" },
+              "note": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "gates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/gate_record" }
+    },
+    "skip_reason_code": {
+      "type": ["string", "null"],
+      "enum": ["date_window_mismatch", "degree_mismatch", "salary_below_floor", "unpaid", "already_applied", "blacklist", "reserve_for_referral", "global_quota", "industry_excluded", "title_excluded", "id_number_required", "payment_required", "resume_language_missing", "unknown_required_field", "quota_reached", "job_closed", "user_excluded", "work_pass_mismatch", "start_immediately", "other", null]
+    },
+    "failure_reason": { "type": ["string", "null"], "maxLength": 500 },
+    "form_state_ref": { "type": ["string", "null"], "description": "runs/<run>/items/<app>/form_state.json / Path to the form checkpoint" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "ledger_synced": { "type": ["boolean", "null"] },
+    "notes": { "type": ["string", "null"], "maxLength": 1000 }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "evidence_type", "captured_at", "captured_by", "qualifies"],
+      "properties": {
+        "evidence_id": { "type": "string" },
+        "evidence_type": { "type": "string", "enum": ["success_page", "ats_confirmation_email", "employer_confirmation_email", "ats_portal_status", "legacy_import", "review_page_screenshot", "form_completed_screenshot", "draft_saved", "account_verification_email", "external_redirect", "open_tab", "generic_ack_email"] },
+        "qualifies": { "type": "boolean", "description": "由 evidence 脚本判定，Agent 不得手写 true / Set by the evidence script only" },
+        "captured_at": { "type": "string" },
+        "captured_by": { "type": "string" },
+        "url": { "type": ["string", "null"] },
+        "page_title": { "type": ["string", "null"] },
+        "file": { "type": ["string", "null"], "description": "相对 evidence/ 的路径 / Path relative to evidence/" },
+        "sha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "job_title_seen": { "type": ["string", "null"] },
+        "email_subject": { "type": ["string", "null"] },
+        "email_from": { "type": ["string", "null"] },
+        "email_received_at": { "type": ["string", "null"] },
+        "email_message_id": { "type": ["string", "null"] },
+        "email_excerpt": { "type": ["string", "null"], "maxLength": 300, "description": "已脱敏 / Redacted" },
+        "matched_job_by": { "type": ["string", "null"], "enum": ["title", "req_id", "company_domain", "manual", null] },
+        "legacy_ref": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "gate_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate_id", "gate_type", "scope", "opened_at"],
+      "properties": {
+        "gate_id": { "type": "string", "pattern": "^pa_[0-9]{8}_[a-f0-9]{6}$" },
+        "gate_type": { "type": "string", "enum": ["password_or_signup", "captcha", "otp", "email_verification_link", "id_number", "payment", "personal_declaration", "final_submit", "content_approval", "resume_missing_language", "unknown_required_field", "file_upload_blocked", "session_expired", "dedup_review", "queue_approval", "consistency_mismatch", "browser_disconnected", "quota_exhausted"] },
+        "scope": { "type": "string", "enum": ["item", "run"] },
+        "mode": { "type": ["string", "null"], "enum": ["sync", "async", null] },
+        "playbook_step": { "type": ["string", "null"] },
+        "opened_at": { "type": "string" },
+        "resolved_at": { "type": ["string", "null"] },
+        "resolution": { "type": ["string", "null"], "enum": ["resolved", "skipped", "user_completed", "expired", "abandoned", null] },
+        "summary": { "type": ["string", "null"], "maxLength": 300, "description": "脱敏一句话 / One redacted sentence" }
+      }
+    }
+  }
+}
